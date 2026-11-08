@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InsureGraph AI — Intelligent P&C Policy Intelligence System</title>
+  <meta name="description" content="InsureGraph AI — AI-powered property and casualty insurance policy analysis with knowledge graph, RAG retrieval, and automated evaluation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <!-- D3.js for graph visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+</head>
+<body>
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2Z" fill="url(#shield-grad)" stroke="rgba(99,179,237,0.4)" stroke-width="0.5"/>
+          <circle cx="12" cy="12" r="3" fill="rgba(255,255,255,0.9)"/>
+          <line x1="12" y1="9" x2="12" y2="15" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+          <line x1="9" y1="12" x2="15" y2="12" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+          <defs>
+            <linearGradient id="shield-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#3b82f6"/>
+              <stop offset="100%" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">InsureGraph</span>
+        <span class="brand-tag">AI</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" id="nav-ingest" onclick="switchTab('ingest')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <span>Ingest</span>
+      </button>
+      <button class="nav-item" id="nav-query" onclick="switchTab('query')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span>Query</span>
+      </button>
+      <button class="nav-item" id="nav-graph" onclick="switchTab('graph')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        <span>Knowledge Graph</span>
+      </button>
+      <button class="nav-item" id="nav-evaluate" onclick="switchTab('evaluate')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <span>Evaluation</span>
+      </button>
+      <button class="nav-item" id="nav-docs" onclick="switchTab('docs')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span>Documents</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div id="health-indicator" class="health-dot healthy" title="System Healthy"></div>
+      <span class="health-text">System Online</span>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ────────────────────────────────────────────────── -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="page-title" id="page-title">Policy Ingestion</h1>
+        <span class="page-subtitle" id="page-subtitle">Upload and process P&C insurance documents</span>
+      </div>
+      <div class="top-bar-right">
+        <div class="stat-chip" id="stat-docs">
+          <span class="stat-val" id="stat-docs-val">0</span>
+          <span class="stat-lbl">Docs</span>
+        </div>
+        <div class="stat-chip" id="stat-chunks">
+          <span class="stat-val" id="stat-chunks-val">0</span>
+          <span class="stat-lbl">Chunks</span>
+        </div>
+        <div class="stat-chip" id="stat-nodes">
+          <span class="stat-val" id="stat-nodes-val">0</span>
+          <span class="stat-lbl">Nodes</span>
+        </div>
+        <div class="stat-chip" id="stat-edges">
+          <span class="stat-val" id="stat-edges-val">0</span>
+          <span class="stat-lbl">Edges</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── TAB: INGEST ──────────────────────────────────────────────── -->
+    <section class="tab-content active" id="tab-ingest">
+      <div class="content-grid">
+        <!-- Upload Card -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <h2 class="card-title">Upload Policy Document</h2>
+            <p class="card-desc">Upload a PDF policy document to extract entities and build the knowledge graph</p>
+          </div>
+          <div class="upload-zone" id="upload-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+            <input type="file" id="file-input" accept=".pdf" style="display:none" onchange="handleFileSelect(event)" />
+            <div class="upload-icon-wrap">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="upload-text">Drop PDF here or <button class="link-btn" onclick="document.getElementById('file-input').click()">browse</button></p>
+            <p class="upload-hint">Supports standard P&C insurance policy PDFs up to 50MB</p>
+            <div class="selected-file" id="selected-file" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span id="selected-file-name">No file selected</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Policy Name (optional)</label>
+              <input type="text" id="policy-name" class="form-input" placeholder="e.g., Commercial Property Policy 2024" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Document Type</label>
+              <select id="doc-type" class="form-input">
+                <option value="commercial">Commercial</option>
+                <option value="property">Property</option>
+                <option value="casualty">Casualty</option>
+                <option value="auto">Auto</option>
+                <option value="liability">Liability</option>
+                <option value="homeowners">Homeowners</option>
+                <option value="umbrella">Umbrella</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="ingest-btn" onclick="ingestDocument()" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            Process & Ingest Policy
+          </button>
+
+          <!-- Progress -->
+          <div class="progress-section" id="progress-section" style="display:none">
+            <div class="progress-steps">
+              <div class="progress-step" id="step-extract">
+                <div class="step-dot"></div>
+                <span>Extracting Text</span>
+              </div>
+              <div class="progress-step" id="step-embed">
+                <div class="step-dot"></div>
+                <span>Embedding Chunks</span>
+              </div>
+              <div class="progress-step" id="step-entity">
+                <div class="step-dot"></div>
+                <span>Extracting Entities</span>
+              </div>
+              <div class="progress-step" id="step-graph">
+                <div class="step-dot"></div>
+                <span>Building Graph</span>
+              </div>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="ingest-progress" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Result -->
+          <div class="ingest-result" id="ingest-result" style="display:none"></div>
+        </div>
+
+        <!-- Or ingest sample text -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Demo: Load Sample Policy</h2>
+            <p class="card-desc">Load a built-in sample commercial property policy for demonstration</p>
+          </div>
+          <div class="sample-options">
+            <button class="sample-btn" onclick="loadSamplePolicy('commercial_property')">
+              <div class="sample-icon">🏢</div>
+              <div>
+                <div class="sample-name">Commercial Property Policy</div>
+                <div class="sample-desc">Building, BPP, Business Income coverages</div>
+              </div>
+            </button>
+            <button class="sample-btn" onclick="loadSamplePolicy('general_liability')">
+              <div class="sample-icon">⚖️</div>
+              <div>
+                <div class="sample-name">General Liability Policy</div>
+                <div class="sample-desc">CGL, products liability, premises coverage</div>
+              </div>
+            </button>
+            <button class="sample-btn" onclick="loadSamplePolicy('homeowners')">
+              <div class="sample-icon">🏠</div>
+              <div>
+                <div class="sample-name">Homeowners Policy (HO-3)</div>
+                <div class="sample-desc">Dwelling, personal property, liability</div>
+              </div>
+            </button>
+          </div>
+          <div class="sample-result" id="sample-result" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: QUERY ───────────────────────────────────────────────── -->
+    <section class="tab-content" id="tab-query">
+      <div class="query-layout">
+        <!-- Query Panel -->
+        <div class="card query-card">
+          <div class="card-header">
+            <h2 class="card-title">Policy Intelligence Query</h2>
+            <div class="query-options">
+              <label class="toggle-wrap">
+                <input type="checkbox" id="use-graph-toggle" checked />
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">Graph Traversal</span>
+              </label>
+              <div class="form-group-inline">
+                <label class="form-label-sm">Max Hops</label>
+                <select id="max-hops" class="form-input-sm">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome">
+              <div class="welcome-icon">🛡️</div>
+              <h3>Ask InsureGraph AI</h3>
+              <p>Query your insurance policies using natural language. The system uses hybrid retrieval (vector search + knowledge graph) for precise, multi-hop reasoning.</p>
+              <div class="example-questions">
+                <p class="examples-title">Try asking:</p>
+                <button class="example-q" onclick="setQuestion(this.textContent)">What is the deductible for water damage claims?</button>
+                <button class="example-q" onclick="setQuestion(this.textContent)">Are earthquake losses covered under the commercial property policy?</button>
+                <button class="example-q" onclick="setQuestion(this.textContent)">Does the policy cover business income loss after a fire, and what is the waiting period?</button>
+                <button class="example-q" onclick="setQuestion(this.textContent)">What are the conditions for filing a claim after a loss?</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Query Input -->
+          <div class="query-input-wrap">
+            <textarea
+              id="query-input"
+              class="query-textarea"
+              placeholder="Ask a complex insurance policy question..."
+              rows="2"
+              onkeydown="handleQueryKey(event)"
+            ></textarea>
+            <button class="btn btn-primary send-btn" id="send-btn" onclick="submitQuery()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sources Panel -->
+        <div class="card sources-card" id="sources-panel" style="display:none">
+          <div class="card-header">
+            <h2 class="card-title">Retrieved Sources</h2>
+            <span class="badge" id="sources-count">0</span>
+          </div>
+          <div class="sources-list" id="sources-list"></div>
+
+          <div class="graph-ctx-section" id="graph-ctx-section">
+            <h3 class="section-title">Graph Context</h3>
+            <div class="graph-entities" id="graph-entities"></div>
+            <div class="graph-rels" id="graph-rels"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: KNOWLEDGE GRAPH ─────────────────────────────────────── -->
+    <section class="tab-content" id="tab-graph">
+      <div class="card graph-card">
+        <div class="card-header">
+          <h2 class="card-title">Knowledge Graph Visualization</h2>
+          <div class="graph-controls">
+            <input type="text" id="graph-search" class="form-input-sm" placeholder="Search entities..." oninput="filterGraph(this.value)" />
+            <select id="graph-type-filter" class="form-input-sm" onchange="filterGraph()">
+              <option value="">All Types</option>
+              <option value="Policy">Policy</option>
+              <option value="Coverage">Coverage</option>
+              <option value="Deductible">Deductible</option>
+              <option value="Exclusion">Exclusion</option>
+              <option value="Policyholder">Policyholder</option>
+              <option value="CoverageLimit">Coverage Limit</option>
+              <option value="Peril">Peril</option>
+              <option value="Premium">Premium</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="refreshGraph()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Refresh
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="resetGraphZoom()">Reset View</button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="graph-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Policy</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#06b6d4"></span>Coverage</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Deductible</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Exclusion</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6"></span>Policyholder</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#10b981"></span>Premium</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f97316"></span>Peril</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#64748b"></span>Other</div>
+        </div>
+
+        <!-- D3 Graph Canvas -->
+        <div class="graph-canvas-wrap">
+          <svg id="graph-canvas" class="graph-canvas"></svg>
+          <div class="graph-empty" id="graph-empty">
+            <div class="empty-icon">🕸️</div>
+            <p>No knowledge graph data yet.</p>
+            <p class="empty-hint">Ingest a policy document to populate the graph.</p>
+          </div>
+        </div>
+
+        <!-- Node Detail Panel -->
+        <div class="node-detail" id="node-detail" style="display:none">
+          <div class="node-detail-header">
+            <span class="node-type-badge" id="nd-type"></span>
+            <h3 id="nd-label"></h3>
+            <button class="close-btn" onclick="closeNodeDetail()">✕</button>
+          </div>
+          <div class="node-detail-props" id="nd-props"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: EVALUATION ──────────────────────────────────────────── -->
+    <section class="tab-content" id="tab-evaluate">
+      <div class="content-grid">
+        <!-- Run Evaluation Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Evaluation Harness</h2>
+            <p class="card-desc">Run the automated LLM-as-judge evaluation pipeline on the golden Q&A dataset</p>
+          </div>
+
+          <div class="eval-config">
+            <div class="form-group">
+              <label class="form-label">Questions to Evaluate</label>
+              <input type="range" id="eval-count" min="1" max="25" value="10" class="range-input" oninput="document.getElementById('eval-count-val').textContent = this.value" />
+              <span class="range-val" id="eval-count-val">10</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category Filter</label>
+              <select id="eval-category" class="form-input">
+                <option value="">All Categories</option>
+                <option value="coverage">Coverage</option>
+                <option value="exclusion">Exclusion</option>
+                <option value="deductible">Deductible</option>
+                <option value="liability">Liability</option>
+                <option value="multi-hop">Multi-hop Reasoning</option>
+                <option value="business_interruption">Business Interruption</option>
+                <option value="conditions">Conditions</option>
+                <option value="premium">Premium</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="eval-warning">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Evaluation uses LLM API calls. Each question costs ~3-5 API calls to the judge model.</span>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="eval-run-btn" onclick="runEvaluation()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Evaluation
+          </button>
+
+          <div id="eval-progress" style="display:none" class="eval-progress">
+            <div class="spinner"></div>
+            <span id="eval-progress-text">Running evaluation...</span>
+          </div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card" id="eval-results-card" style="display:none">
+          <div class="card-header">
+            <h2 class="card-title">Evaluation Results</h2>
+            <span class="badge badge-success" id="eval-result-badge">Complete</span>
+          </div>
+
+          <!-- Aggregate Metrics -->
+          <div class="metrics-grid" id="metrics-grid"></div>
+
+          <!-- Radar Chart -->
+          <div class="radar-wrap" id="radar-wrap">
+            <canvas id="radar-chart" width="300" height="300"></canvas>
+          </div>
+        </div>
+
+        <!-- Individual Results -->
+        <div class="card card-wide" id="eval-individual-card" style="display:none">
+          <div class="card-header">
+            <h2 class="card-title">Individual Question Results</h2>
+          </div>
+          <div class="results-table-wrap">
+            <table class="results-table" id="results-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Question</th>
+                  <th>Faithfulness</th>
+                  <th>Relevance</th>
+                  <th>Ctx Precision</th>
+                  <th>Ctx Recall</th>
+                  <th>F1</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Golden Dataset Preview -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <h2 class="card-title">Golden Dataset Preview</h2>
+            <span class="badge">25 Questions</span>
+          </div>
+          <div class="dataset-grid" id="dataset-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB: DOCUMENTS ───────────────────────────────────────────── -->
+    <section class="tab-content" id="tab-docs">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Ingested Documents</h2>
+          <button class="btn btn-secondary btn-sm" onclick="loadDocuments()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="docs-grid" id="docs-grid">
+          <div class="docs-empty">
+            <div class="empty-icon">📂</div>
+            <p>No documents ingested yet.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── Toast Notification ──────────────────────────────────────────── -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
