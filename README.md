@@ -231,9 +231,3 @@ curl http://localhost:8000/api/evaluate/dataset
   "processing_time_s": 127.4
 }
 ```
-
----
-
-## 📝 License
-
-MIT License — InsureGraph AI 2024
